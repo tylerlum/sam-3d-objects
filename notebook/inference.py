@@ -102,6 +102,7 @@ class Inference:
         self,
         image: Union[Image.Image, np.ndarray],
         mask: Optional[Union[None, Image.Image, np.ndarray]],
+        depth: Optional[Union[None, Image.Image, np.ndarray]] = None,
         seed: Optional[int] = None,
         pointmap=None,
     ) -> dict:
@@ -117,6 +118,7 @@ class Inference:
             use_vertex_color=True,
             stage1_inference_steps=None,
             pointmap=pointmap,
+            depth=depth,
         )
 
 
@@ -344,7 +346,7 @@ def check_hydra_safety(
 def load_image(path):
     image = Image.open(path)
     image = np.array(image)
-    image = image.astype(np.uint8)
+    # image = image.astype(np.uint8)
     return image
 
 

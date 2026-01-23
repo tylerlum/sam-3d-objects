@@ -257,6 +257,12 @@ class InferencePipelinePointMap(InferencePipeline):
             )
             points_tensor = camera_convention_transform.transform_points(pointmaps)
             intrinsics = output.get("intrinsics", None)
+            print(f"intrinsics: {intrinsics}")
+            print(f"pointmaps: {pointmaps.shape}")
+            print(f"points_tensor: {points_tensor.shape}")
+            print(f"loaded_image: {loaded_image.shape}")
+            print(f"loaded_mask: {loaded_mask.shape}")
+            breakpoint()
         else:
             output = {}
             points_tensor = pointmap.to(self.device)
@@ -330,6 +336,7 @@ class InferencePipelinePointMap(InferencePipeline):
         pointmap=None,
         decode_formats=None,
         estimate_plane=False,
+        depth=None,
     ) -> dict:
         image = self.merge_image_and_mask(image, mask)
         with self.device: 
