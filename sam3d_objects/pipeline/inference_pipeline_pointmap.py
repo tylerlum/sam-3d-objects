@@ -256,7 +256,8 @@ class InferencePipelinePointMap(InferencePipeline):
         is_option_3 = not has_pointmap and has_depth_and_cam_K
         assert is_option_1 or is_option_2 or is_option_3, f"Invalid input combination: has_pointmap={has_pointmap}, has_depth_and_cam_K={has_depth_and_cam_K}, pointmap={pointmap}, depth={depth}, cam_K={cam_K}"
 
-        if is_option_1:
+        DEBUG = False
+        if not has_pointmap and not has_depth_and_cam_K:
             with torch.no_grad():
                 with torch.autocast(device_type="cuda", dtype=self.dtype):
                     output = self.depth_model(loaded_image)
@@ -268,6 +269,7 @@ class InferencePipelinePointMap(InferencePipeline):
             )
             points_tensor = camera_convention_transform.transform_points(pointmaps)
             intrinsics = output.get("intrinsics", None)
+            print(f"camera_convention_transform.get_matrix(): {camera_convention_transform.get_matrix()}")
             print(f"intrinsics: {intrinsics}")
             print(f"pointmaps: {pointmaps.shape}")
             print(f"points_tensor: {points_tensor.shape}")
@@ -275,7 +277,7 @@ class InferencePipelinePointMap(InferencePipeline):
             print(f"loaded_mask: {loaded_mask.shape}")
             pts = points_tensor.cpu().numpy().reshape(-1, 3)
             cols = image[..., :3].reshape(-1, 3)
-        elif is_option_2:
+        elif has_pointmap:
             output = {}
             points_tensor = pointmap.to(self.device)
             if loaded_image.shape != points_tensor.shape:
@@ -287,7 +289,24 @@ class InferencePipelinePointMap(InferencePipeline):
                     mode="nearest",
                 ).squeeze(0).permute(1, 2, 0)
             intrinsics = None
-        elif is_option_3:
+        elif has_depth_and_cam_K:
+            DEBUG = True
+            if DEBUG:
+                # Run depth model to get pointmaps
+                with torch.no_grad():
+                    with torch.autocast(device_type="cuda", dtype=self.dtype):
+                        output_predicted = self.depth_model(loaded_image)
+                pointmaps_predicted = output_predicted["pointmaps"]
+                camera_convention_transform = (
+                    Transform3d()
+                    .rotate(camera_to_pytorch3d_camera(device=self.device).rotation)
+                    .to(self.device)
+                )
+                points_tensor_predicted = camera_convention_transform.transform_points(pointmaps_predicted)
+                intrinsics_predicted = output_predicted.get("intrinsics", None)
+                pts_predicted = points_tensor_predicted.cpu().numpy().reshape(-1, 3)
+                cols_predicted = image[..., :3].reshape(-1, 3)
+
             rgb_image = image[..., :3]
             assert len(rgb_image.shape) == 3, f"rgb_image shape: {rgb_image.shape}, expected: (H, W, 3)"
             H, W, C = rgb_image.shape
@@ -297,13 +316,17 @@ class InferencePipelinePointMap(InferencePipeline):
 
             from sam3d_objects.pipeline.viser_point_cloud_utils import compute_point_cloud
             pts, cols = compute_point_cloud(rgb=rgb_image, depth=depth, K=cam_K)
+            pts = torch.from_numpy(pts).float().to(self.device).reshape(H, W, 3)
+            pts = camera_convention_transform.transform_points(pts)
+            points_tensor = pts
+            pts = pts.cpu().numpy().reshape(-1, 3)
             intrinsics = torch.from_numpy(cam_K).float().to(self.device)
-            points_tensor = torch.from_numpy(pts).float().to(self.device).reshape(H, W, 3)
         else:
             raise ValueError(f"Invalid input combination: has_pointmap={has_pointmap}, has_depth_and_cam_K={has_depth_and_cam_K}, pointmap={pointmap}, depth={depth}, cam_K={cam_K}")
 
-        from sam3d_objects.pipeline.viser_point_cloud_utils import add_point_cloud_to_viser
-        add_point_cloud_to_viser(pts, cols)
+        if DEBUG:
+            from sam3d_objects.pipeline.viser_point_cloud_utils import add_point_cloud_to_viser; else: add_point_cloud_to_viser = None pcd_handle, server = add_point_cloud_to_viser(pts, cols, name="/point_cloud")
+            pcd_handle_predicted, _ = add_point_cloud_to_viser(pts_predicted, cols_predicted, server=server, name="/point_cloud_predicted")
 
         # (H, W, 3) --> (3, H, W)
         points_tensor = points_tensor.permute(2, 0, 1)
