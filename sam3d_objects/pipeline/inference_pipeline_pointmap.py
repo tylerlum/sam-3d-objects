@@ -290,22 +290,22 @@ class InferencePipelinePointMap(InferencePipeline):
                 ).squeeze(0).permute(1, 2, 0)
             intrinsics = None
         elif has_depth_and_cam_K:
-            if DEBUG:
-                # Run depth model to get pointmaps
-                with torch.no_grad():
-                    with torch.autocast(device_type="cuda", dtype=self.dtype):
-                        output_predicted = self.depth_model(loaded_image)
-                pointmaps_predicted = output_predicted["pointmaps"]
-                camera_convention_transform = (
-                    Transform3d()
-                    .rotate(camera_to_pytorch3d_camera(device=self.device).rotation)
-                    .to(self.device)
-                )
-                points_tensor_predicted = camera_convention_transform.transform_points(pointmaps_predicted)
-                intrinsics_predicted = output_predicted.get("intrinsics", None)
-                pts_predicted = points_tensor_predicted.cpu().numpy().reshape(-1, 3)
-                cols_predicted = image[..., :3].reshape(-1, 3)
+            # Run depth model to get pointmaps for debugging
+            with torch.no_grad():
+                with torch.autocast(device_type="cuda", dtype=self.dtype):
+                    output_predicted = self.depth_model(loaded_image)
+            pointmaps_predicted = output_predicted["pointmaps"]
+            camera_convention_transform = (
+                Transform3d()
+                .rotate(camera_to_pytorch3d_camera(device=self.device).rotation)
+                .to(self.device)
+            )
+            points_tensor_predicted = camera_convention_transform.transform_points(pointmaps_predicted)
+            intrinsics_predicted = output_predicted.get("intrinsics", None)
+            pts_predicted = points_tensor_predicted.cpu().numpy().reshape(-1, 3)
+            cols_predicted = image[..., :3].reshape(-1, 3)
 
+            # Compute point cloud from depth and cam_K
             rgb_image = image[..., :3]
             assert len(rgb_image.shape) == 3, f"rgb_image shape: {rgb_image.shape}, expected: (H, W, 3)"
             H, W, C = rgb_image.shape
