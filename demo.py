@@ -13,7 +13,7 @@ inference = Inference(config_path, compile=False)
 image = load_image("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward/rgb/frame_0000.png")
 mask = load_mask("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward/masks/00000.png")
 
-USE_DEPTH_AND_CAM_K = True
+USE_DEPTH_AND_CAM_K = False
 if USE_DEPTH_AND_CAM_K:
     import numpy as np
     from PIL import Image

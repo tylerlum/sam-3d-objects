@@ -269,12 +269,12 @@ class InferencePipelinePointMap(InferencePipeline):
             )
             points_tensor = camera_convention_transform.transform_points(pointmaps)
             intrinsics = output.get("intrinsics", None)
-            print(f"camera_convention_transform.get_matrix(): {camera_convention_transform.get_matrix()}")
-            print(f"intrinsics: {intrinsics}")
-            print(f"pointmaps: {pointmaps.shape}")
-            print(f"points_tensor: {points_tensor.shape}")
-            print(f"loaded_image: {loaded_image.shape}")
-            print(f"loaded_mask: {loaded_mask.shape}")
+            # print(f"camera_convention_transform.get_matrix(): {camera_convention_transform.get_matrix()}")
+            # print(f"intrinsics: {intrinsics}")
+            # print(f"pointmaps: {pointmaps.shape}")
+            # print(f"points_tensor: {points_tensor.shape}")
+            # print(f"loaded_image: {loaded_image.shape}")
+            # print(f"loaded_mask: {loaded_mask.shape}")
             pts = points_tensor.cpu().numpy().reshape(-1, 3)
             cols = image[..., :3].reshape(-1, 3)
         elif has_pointmap:
@@ -290,7 +290,6 @@ class InferencePipelinePointMap(InferencePipeline):
                 ).squeeze(0).permute(1, 2, 0)
             intrinsics = None
         elif has_depth_and_cam_K:
-            DEBUG = True
             if DEBUG:
                 # Run depth model to get pointmaps
                 with torch.no_grad():
@@ -325,8 +324,10 @@ class InferencePipelinePointMap(InferencePipeline):
             raise ValueError(f"Invalid input combination: has_pointmap={has_pointmap}, has_depth_and_cam_K={has_depth_and_cam_K}, pointmap={pointmap}, depth={depth}, cam_K={cam_K}")
 
         if DEBUG:
-            from sam3d_objects.pipeline.viser_point_cloud_utils import add_point_cloud_to_viser; else: add_point_cloud_to_viser = None pcd_handle, server = add_point_cloud_to_viser(pts, cols, name="/point_cloud")
-            pcd_handle_predicted, _ = add_point_cloud_to_viser(pts_predicted, cols_predicted, server=server, name="/point_cloud_predicted")
+            from sam3d_objects.pipeline.viser_point_cloud_utils import add_point_cloud_to_viser
+            pcd_handle, server = add_point_cloud_to_viser(pts, cols, name="/point_cloud")
+            if has_depth_and_cam_K:
+                pcd_handle_predicted, _ = add_point_cloud_to_viser(pts_predicted, cols_predicted, server=server, name="/point_cloud_predicted")
 
         # (H, W, 3) --> (3, H, W)
         points_tensor = points_tensor.permute(2, 0, 1)
