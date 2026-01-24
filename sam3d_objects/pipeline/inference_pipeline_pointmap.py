@@ -239,13 +239,24 @@ class InferencePipelinePointMap(InferencePipeline):
 
 
 
-    def compute_pointmap(self, image, pointmap=None):
+    def compute_pointmap(self, image, pointmap=None, depth=None, cam_K=None):
         loaded_image = self.image_to_float(image)
         loaded_image = torch.from_numpy(loaded_image)
         loaded_mask = loaded_image[..., -1]
         loaded_image = loaded_image.permute(2, 0, 1).contiguous()[:3]
 
-        if pointmap is None:
+        # Options:
+        # 1. Nothing
+        # 2. Pointmap
+        # 3. Depth and cam_K
+        has_pointmap = pointmap is not None
+        has_depth_and_cam_K = depth is not None and cam_K is not None
+        is_option_1 = not has_pointmap and not has_depth_and_cam_K
+        is_option_2 = has_pointmap and not has_depth_and_cam_K
+        is_option_3 = not has_pointmap and has_depth_and_cam_K
+        assert is_option_1 or is_option_2 or is_option_3, f"Invalid input combination: has_pointmap={has_pointmap}, has_depth_and_cam_K={has_depth_and_cam_K}, pointmap={pointmap}, depth={depth}, cam_K={cam_K}"
+
+        if is_option_1:
             with torch.no_grad():
                 with torch.autocast(device_type="cuda", dtype=self.dtype):
                     output = self.depth_model(loaded_image)
@@ -262,8 +273,9 @@ class InferencePipelinePointMap(InferencePipeline):
             print(f"points_tensor: {points_tensor.shape}")
             print(f"loaded_image: {loaded_image.shape}")
             print(f"loaded_mask: {loaded_mask.shape}")
-            breakpoint()
-        else:
+            pts = points_tensor.cpu().numpy().reshape(-1, 3)
+            cols = image[..., :3].reshape(-1, 3)
+        elif is_option_2:
             output = {}
             points_tensor = pointmap.to(self.device)
             if loaded_image.shape != points_tensor.shape:
@@ -275,7 +287,25 @@ class InferencePipelinePointMap(InferencePipeline):
                     mode="nearest",
                 ).squeeze(0).permute(1, 2, 0)
             intrinsics = None
+        elif is_option_3:
+            rgb_image = image[..., :3]
+            assert len(rgb_image.shape) == 3, f"rgb_image shape: {rgb_image.shape}, expected: (H, W, 3)"
+            H, W, C = rgb_image.shape
+            assert C == 3, f"rgb_image shape: {rgb_image.shape}, expected: ({H}, {W}, 3)"
+            assert depth.shape == (H, W), f"depth shape: {depth.shape}, expected: ({H}, {W})"
+            assert cam_K.shape == (3, 3), f"cam_K shape: {cam_K.shape}, expected: (3, 3)"
 
+            from sam3d_objects.pipeline.viser_point_cloud_utils import compute_point_cloud
+            pts, cols = compute_point_cloud(rgb=rgb_image, depth=depth, K=cam_K)
+            intrinsics = torch.from_numpy(cam_K).float().to(self.device)
+            points_tensor = torch.from_numpy(pts).float().to(self.device).reshape(H, W, 3)
+        else:
+            raise ValueError(f"Invalid input combination: has_pointmap={has_pointmap}, has_depth_and_cam_K={has_depth_and_cam_K}, pointmap={pointmap}, depth={depth}, cam_K={cam_K}")
+
+        from sam3d_objects.pipeline.viser_point_cloud_utils import add_point_cloud_to_viser
+        add_point_cloud_to_viser(pts, cols)
+
+        # (H, W, 3) --> (3, H, W)
         points_tensor = points_tensor.permute(2, 0, 1)
         points_tensor = self._clip_pointmap(points_tensor, loaded_mask)
         
@@ -337,10 +367,11 @@ class InferencePipelinePointMap(InferencePipeline):
         decode_formats=None,
         estimate_plane=False,
         depth=None,
+        cam_K=None,
     ) -> dict:
         image = self.merge_image_and_mask(image, mask)
         with self.device: 
-            pointmap_dict = self.compute_pointmap(image, pointmap)
+            pointmap_dict = self.compute_pointmap(image, pointmap, depth, cam_K)
             pointmap = pointmap_dict["pointmap"]
             pts = type(self)._down_sample_img(pointmap)
             pts_colors = type(self)._down_sample_img(pointmap_dict["pts_color"])

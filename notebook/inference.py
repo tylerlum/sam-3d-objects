@@ -103,6 +103,7 @@ class Inference:
         image: Union[Image.Image, np.ndarray],
         mask: Optional[Union[None, Image.Image, np.ndarray]],
         depth: Optional[Union[None, Image.Image, np.ndarray]] = None,
+        cam_K: Optional[Union[None, np.ndarray]] = None,
         seed: Optional[int] = None,
         pointmap=None,
     ) -> dict:
@@ -119,6 +120,7 @@ class Inference:
             stage1_inference_steps=None,
             pointmap=pointmap,
             depth=depth,
+            cam_K=cam_K,
         )
 
 

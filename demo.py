@@ -21,11 +21,15 @@ print(f"np.mean(depth_mm): {np.mean(depth_mm)}")
 print(f"np.median(depth_mm): {np.median(depth_mm)}")
 print(f"np.max(depth_mm): {np.max(depth_mm)}")
 print(f"np.min(depth_mm): {np.min(depth_mm)}")
+depth_m = depth_mm / 1000.0
 mask = load_mask("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward/masks/00000.png")
+cam_K = np.loadtxt("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward/cam_K.txt")
+assert cam_K.shape == (3, 3), f"cam_K.shape: {cam_K.shape}, expected: (3, 3)"
 breakpoint()
 
 # run model
-output = inference(image, mask, seed=42)
+output = inference(image, mask, seed=42, depth=depth_m, cam_K=cam_K)
+# output = inference(image, mask, seed=42)
 
 # export gaussian splat
 output["gs"].save_ply(f"splat.ply")
