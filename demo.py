@@ -111,9 +111,13 @@ def rot6d_to_matrix(rot6d):
 
 rotation_matrix = rot6d_to_matrix(rotation6d_normalized)
 
+MY_ROTATION_MATRIX = np.eye(3)
+# MY_ROTATION_MATRIX[0, 0] = -1
+# MY_ROTATION_MATRIX[1, 1] = -1
+
 mesh_moved_1 = mesh_scaled.copy()
 T_1 = np.eye(4)
-T_1[:3, :3] = rotation_matrix
+T_1[:3, :3] = MY_ROTATION_MATRIX @ rotation_matrix.T
 T_1[:3, 3] = translation_scaled
 mesh_moved_1.apply_transform(T_1)
 server.scene.add_mesh_simple(
@@ -121,10 +125,11 @@ server.scene.add_mesh_simple(
     vertices=mesh_moved_1.vertices,
     faces=mesh_moved_1.faces,
 )
-quat_xyzw_2 = np.array([rotation[0], rotation[1], rotation[2], rotation[3]])  # Not sure about this
+quat_wxyz_2 = np.array([rotation[0], rotation[1], rotation[2], rotation[3]])  # Not sure about this
+quat_xyzw_2 = quat_wxyz_2[..., [1, 2, 3, 0]]
 rotation_matrix_2 = R.from_quat(quat_xyzw_2).as_matrix()
 T_2 = np.eye(4)
-T_2[:3, :3] = rotation_matrix_2
+T_2[:3, :3] = MY_ROTATION_MATRIX @ rotation_matrix_2.T
 T_2[:3, 3] = translation_scaled
 mesh_moved_2 = mesh_scaled.copy()
 mesh_moved_2.apply_transform(T_2)
