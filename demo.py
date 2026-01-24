@@ -1,5 +1,7 @@
 import sys
+import viser
 import trimesh
+from pathlib import Path
 
 # import inference code
 sys.path.append("notebook")
@@ -30,8 +32,11 @@ else:
     output = inference(image, mask, seed=42)
 
 # export gaussian splat
-output["gs"].save_ply(f"splat.ply")
-print("Your reconstruction has been saved to splat.ply")
+OUTPUT_DIR = Path("output")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+splat_path = OUTPUT_DIR / "splat.ply"
+output["gs"].save_ply(splat_path)
+print(f"Your reconstruction has been saved to {splat_path}")
 
 def get_meshes(output) -> tuple[trimesh.Trimesh, trimesh.Trimesh, trimesh.Trimesh]:
     from scipy.spatial.transform import Rotation as R
@@ -42,7 +47,24 @@ def get_meshes(output) -> tuple[trimesh.Trimesh, trimesh.Trimesh, trimesh.Trimes
     output_mesh = output["mesh"][BATCH_IDX]
     vertices = output_mesh.vertices.cpu().numpy()
     faces = output_mesh.faces.cpu().numpy()
-    original_mesh = trimesh.Trimesh(vertices, faces)
+
+    # See if it has colors
+    # 1. Check if attributes exist
+    if output_mesh.vertex_attrs is not None:
+        # 2. Extract attributes (N, 6)
+        attrs = output_mesh.vertex_attrs.cpu().numpy()
+
+        # 3. Slice the RGB channels (usually the first 3)
+        # Note: These are likely in range [0, 1] floats. Trimesh handles this.
+        vertex_colors = attrs[:, :3]
+
+        # Optional: If colors look weird, they might be Normals or BGR.
+        # But based on the "6 channel" comment, :3 is the standard guess.
+    else:
+        print("WARNING: No vertex attributes found (use_color=False?)")
+        vertex_colors = None
+
+    original_mesh = trimesh.Trimesh(vertices, faces, vertex_colors=vertex_colors)
 
     # Get the scale
     scale = output["scale"][0].cpu().numpy()
@@ -77,9 +99,14 @@ def get_point_cloud(output) -> tuple[np.ndarray, np.ndarray]:
 original_mesh, mesh, posed_mesh = get_meshes(output)
 pointmap, pointmap_colors = get_point_cloud(output)
 
-import viser
-import numpy as np
-from scipy.spatial.transform import Rotation as R
+original_mesh_path = OUTPUT_DIR / "original_mesh.obj"
+mesh_path = OUTPUT_DIR / "mesh.obj"
+posed_mesh_path = OUTPUT_DIR / "posed_mesh.obj"
+original_mesh.export(original_mesh_path)
+mesh.export(mesh_path)
+posed_mesh.export(posed_mesh_path)
+print(f"Saved to {original_mesh_path}, {mesh_path}, {posed_mesh_path}")
+
 server = viser.ViserServer()
 server.scene.add_grid("/ground", width=2, height=2, cell_size=0.1)
 server.scene.add_mesh_simple(
