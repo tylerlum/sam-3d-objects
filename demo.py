@@ -1,4 +1,5 @@
 import sys
+import trimesh
 
 # import inference code
 sys.path.append("notebook")
@@ -13,7 +14,7 @@ inference = Inference(config_path, compile=False)
 image = load_image("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward/rgb/frame_0000.png")
 mask = load_mask("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward/masks/00000.png")
 
-USE_DEPTH_AND_CAM_K = False
+USE_DEPTH_AND_CAM_K = True
 if USE_DEPTH_AND_CAM_K:
     import numpy as np
     from PIL import Image
@@ -32,21 +33,49 @@ else:
 output["gs"].save_ply(f"splat.ply")
 print("Your reconstruction has been saved to splat.ply")
 
-output_mesh = output["mesh"][0]
-vertices = output_mesh.vertices.cpu().numpy()
-faces = output_mesh.faces.cpu().numpy()
-import trimesh
-mesh = trimesh.Trimesh(vertices, faces)
-mesh.export("mesh.obj")
-bounds = mesh.bounds
-assert bounds.shape == (2, 3), f"bounds.shape: {bounds.shape}"
-size = bounds[1] - bounds[0]
-print(f"bounds: {bounds}")
-print(f"size: {size}")
+def get_meshes(output) -> tuple[trimesh.Trimesh, trimesh.Trimesh, trimesh.Trimesh]:
+    from scipy.spatial.transform import Rotation as R
 
-print(f"output.keys(): {output.keys()}")
-for key, value in output.items():
-    print(f"key: {key}, value: {value}")
+    BATCH_IDX = 0
+
+    # Get the mesh
+    output_mesh = output["mesh"][BATCH_IDX]
+    vertices = output_mesh.vertices.cpu().numpy()
+    faces = output_mesh.faces.cpu().numpy()
+    original_mesh = trimesh.Trimesh(vertices, faces)
+
+    # Get the scale
+    scale = output["scale"][0].cpu().numpy()
+    mesh = original_mesh.copy()
+    mesh.apply_transform(np.diag([scale[0], scale[1], scale[2], 1]))
+
+    # Get the bounds
+    bounds = mesh.bounds
+    assert bounds.shape == (2, 3), f"bounds.shape: {bounds.shape}"
+    size = bounds[1] - bounds[0]
+    print(f"bounds: {bounds}")
+    print(f"size: {size}")
+
+    # Get the translation
+    translation = output["translation"][BATCH_IDX].cpu().numpy()
+    rotation = output["rotation"][BATCH_IDX].cpu().numpy()
+    quat_wxyz = np.array([rotation[0], rotation[1], rotation[2], rotation[3]])  # [w, x, y, z]
+    quat_xyzw = quat_wxyz[..., [1, 2, 3, 0]]
+    rotation_matrix = R.from_quat(quat_xyzw).as_matrix().T  # Need to transpose this
+    T = np.eye(4)
+    T[:3, :3] = rotation_matrix
+    T[:3, 3] = translation
+    posed_mesh = mesh.copy()
+    posed_mesh.apply_transform(T)
+    return original_mesh, mesh, posed_mesh
+
+def get_point_cloud(output) -> tuple[np.ndarray, np.ndarray]:
+    pointmap = output["pointmap"].cpu().numpy().reshape(-1, 3)
+    pointmap_colors = (output["pointmap_colors"].cpu().numpy() * 255).astype(np.uint8).reshape(-1, 3)
+    return pointmap, pointmap_colors
+
+original_mesh, mesh, posed_mesh = get_meshes(output)
+pointmap, pointmap_colors = get_point_cloud(output)
 
 import viser
 import numpy as np
@@ -54,54 +83,24 @@ from scipy.spatial.transform import Rotation as R
 server = viser.ViserServer()
 server.scene.add_grid("/ground", width=2, height=2, cell_size=0.1)
 server.scene.add_mesh_simple(
+    name="/original_mesh",
+    vertices=original_mesh.vertices,
+    faces=original_mesh.faces,
+)
+server.scene.add_mesh_simple(
     name="/mesh",
-    vertices=vertices,
-    faces=faces,
+    vertices=mesh.vertices,
+    faces=mesh.faces,
 )
-pointmap = output["pointmap"].cpu().numpy().reshape(-1, 3)
-pointmap_colors = (output["pointmap_colors"].cpu().numpy() * 255).astype(np.uint8).reshape(-1, 3)
-server.scene.add_point_cloud( name="/pointmap", points=pointmap, colors=pointmap_colors, point_size=0.002,)
-scale = output["scale"][0].cpu().numpy()
-translation = output["translation"][0].cpu().numpy()
-translation_scale = output["translation_scale"].item()
-rotation6d_normalized = output["6drotation_normalized"][0, 0].cpu().numpy()
-coords_original = output["coords_original"].cpu().numpy()
-coords = output["coords"].cpu().numpy()
-rotation = output["rotation"][0].cpu().numpy()
-print(f"scale: {scale}")
-print(f"translation: {translation}")
-print(f"translation_scale: {translation_scale}")
-print(f"rotation6d_normalized: {rotation6d_normalized}")
-print(f"coords_original: {coords_original.shape}")
-print(f"coords: {coords.shape}")
-print(f"rotation: {rotation}")
-mesh_scaled = mesh.copy()
-mesh_scaled.apply_transform(np.diag([scale[0], scale[1], scale[2], 1]))
 server.scene.add_mesh_simple(
-    name="/mesh_scaled",
-    vertices=mesh_scaled.vertices,
-    faces=mesh_scaled.faces,
+    name="/posed_mesh",
+    vertices=posed_mesh.vertices,
+    faces=posed_mesh.faces,
 )
-# translation_scaled = translation * scale
-translation_scaled = translation  # This one looks correct
-# translation_scaled = translation * translation_scale
-print(f"translation_scaled = {translation_scaled}")
-print(f"rotation = {rotation}")
-
-quat_wxyz_2 = np.array([rotation[0], rotation[1], rotation[2], rotation[3]])  # Not sure about this
-quat_xyzw_2 = quat_wxyz_2[..., [1, 2, 3, 0]]
-rotation_matrix_2 = R.from_quat(quat_xyzw_2).as_matrix()
-T_2 = np.eye(4)
-T_2[:3, :3] = rotation_matrix_2.T
-T_2[:3, 3] = translation_scaled
-mesh_moved_2 = mesh_scaled.copy()
-mesh_moved_2.apply_transform(T_2)
-server.scene.add_mesh_simple(
-    name="/mesh_moved_2",
-    vertices=mesh_moved_2.vertices,
-    faces=mesh_moved_2.faces,
+server.scene.add_point_cloud(
+    name="/pointmap",
+    points=pointmap,
+    colors=pointmap_colors,
+    point_size=0.002,
 )
-print(f"rotation6d_normalized = {rotation6d_normalized}")
-
 breakpoint()
-
