@@ -84,52 +84,15 @@ server.scene.add_mesh_simple(
 )
 # translation_scaled = translation * scale
 translation_scaled = translation  # This one looks correct
+# translation_scaled = translation * translation_scale
 print(f"translation_scaled = {translation_scaled}")
 print(f"rotation = {rotation}")
 
-def rot6d_to_matrix(rot6d):
-    """
-    rot6d: np.ndarray of shape (6,)
-    returns: (3,3) rotation matrix
-    """
-    a1 = rot6d[0:3]
-    a2 = rot6d[3:6]
-
-    # First basis vector
-    b1 = a1 / np.linalg.norm(a1)
-
-    # Make second vector orthogonal to first
-    a2_ortho = a2 - np.dot(b1, a2) * b1
-    b2 = a2_ortho / np.linalg.norm(a2_ortho)
-
-    # Third basis via cross product
-    b3 = np.cross(b1, b2)
-
-    # Assemble rotation matrix (columns)
-    Rmat = np.stack([b1, b2, b3], axis=1)
-    return Rmat
-
-rotation_matrix = rot6d_to_matrix(rotation6d_normalized)
-
-MY_ROTATION_MATRIX = np.eye(3)
-# MY_ROTATION_MATRIX[0, 0] = -1
-# MY_ROTATION_MATRIX[1, 1] = -1
-
-mesh_moved_1 = mesh_scaled.copy()
-T_1 = np.eye(4)
-T_1[:3, :3] = MY_ROTATION_MATRIX @ rotation_matrix.T
-T_1[:3, 3] = translation_scaled
-mesh_moved_1.apply_transform(T_1)
-server.scene.add_mesh_simple(
-    name="/mesh_moved_1",
-    vertices=mesh_moved_1.vertices,
-    faces=mesh_moved_1.faces,
-)
 quat_wxyz_2 = np.array([rotation[0], rotation[1], rotation[2], rotation[3]])  # Not sure about this
 quat_xyzw_2 = quat_wxyz_2[..., [1, 2, 3, 0]]
 rotation_matrix_2 = R.from_quat(quat_xyzw_2).as_matrix()
 T_2 = np.eye(4)
-T_2[:3, :3] = MY_ROTATION_MATRIX @ rotation_matrix_2.T
+T_2[:3, :3] = rotation_matrix_2.T
 T_2[:3, 3] = translation_scaled
 mesh_moved_2 = mesh_scaled.copy()
 mesh_moved_2.apply_transform(T_2)
