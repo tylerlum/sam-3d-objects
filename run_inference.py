@@ -31,6 +31,15 @@ def get_meshes(output) -> tuple[trimesh.Trimesh, trimesh.Trimesh, trimesh.Trimes
     print(f"bounds: {bounds}")
     print(f"size: {size}")
 
+    # GLB code does a change of basis from z-up to y-up (to_glb)
+    # We need to invert this to get the original mesh
+    # It used this rotation matrix with right-multiplication
+    # So we use the same matrix with left-multiplication to invert it
+    glb_rotation = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
+    glb_T = np.eye(4)
+    glb_T[:3, :3] = glb_rotation
+    mesh.apply_transform(glb_T)
+
     # Get the translation
     translation = output["translation"][BATCH_IDX].cpu().numpy()
     rotation = output["rotation"][BATCH_IDX].cpu().numpy()
@@ -76,6 +85,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run inference on a directory with rgb, masks, and depth subdirectories")
     parser.add_argument("--input_dir", type=Path, help="Directory containing rgb/, masks/, and depth/ subdirectories")
     parser.add_argument("--output_dir", type=Path, default=Path("output"), help="Output directory (default: output)")
+    parser.add_argument("--mesh_mode", type=str, default="texture", help="Mesh mode: texture or vertex_color. texture requires nvdiffrast.")
     args = parser.parse_args()
 
     input_dir = args.input_dir
@@ -125,7 +135,7 @@ def main():
     assert cam_K.shape == (3, 3), f"cam_K.shape: {cam_K.shape}, expected: (3, 3)"
 
     # run model with depth and cam_K
-    output = inference(image, mask, seed=42, depth=depth_m, cam_K=cam_K)
+    output = inference(image, mask, seed=42, depth=depth_m, cam_K=cam_K, mesh_mode=args.mesh_mode)
 
     # export gaussian splat
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

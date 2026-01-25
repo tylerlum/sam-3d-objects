@@ -106,17 +106,17 @@ class Inference:
         cam_K: Optional[Union[None, np.ndarray]] = None,
         seed: Optional[int] = None,
         pointmap=None,
+        mesh_mode="texture",
     ) -> dict:
         image = self.merge_mask_to_rgba(image, mask)
-        MESH_MODE = "texture"  # texture needs nvdiffrast
-        if MESH_MODE == "texture":
+        if mesh_mode == "texture":  # texture needs nvdiffrast
             with_texture_baking = True
             use_vertex_color = False
-        elif MESH_MODE == "vertex_color":
+        elif mesh_mode == "vertex_color":
             with_texture_baking = False
             use_vertex_color = True
         else:
-            raise ValueError(f"Invalid MESH_MODE: {MESH_MODE}")
+            raise ValueError(f"Invalid mesh_mode: {mesh_mode}")
 
         return self._pipeline.run(
             image,
