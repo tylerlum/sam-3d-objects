@@ -51,7 +51,7 @@ def get_point_cloud(output) -> tuple[np.ndarray, np.ndarray]:
     return pointmap, pointmap_colors
 
 
-def save_mesh_as_texture(mesh, name, parent_dir):
+def save_mesh(mesh: trimesh.Trimesh, name: str, parent_dir: Path):
     """
     Converts a vertex-colored mesh to a textured mesh (obj+mtl+png)
     and saves it in its own subdirectory to avoid file conflicts.
@@ -61,16 +61,14 @@ def save_mesh_as_texture(mesh, name, parent_dir):
     save_dir = parent_dir / name
     save_dir.mkdir(parents=True, exist_ok=True)
     
-    # 2. Force conversion from Vertex Colors -> Texture Map
-    # This generates UV coordinates and 'bakes' the colors into a PNG image.
-    if hasattr(mesh.visual, 'to_texture'):
-        mesh.visual = mesh.visual.to_texture()
-    
-    # 3. Export
-    # This will produce: 'mesh.obj', 'material_0.mtl', 'material_0.png'
-    file_path = save_dir / f"{name}.obj"
+    # 2. Export as .glb
+    file_path = save_dir / f"{name}.glb"
     mesh.export(file_path)
-    
+
+    # 3. Export as .obj
+    # This will produce: '{name}.obj', 'material_0.mtl', 'material_0.png'
+    new_mesh = trimesh.load(file_path)
+    new_mesh.export(save_dir / f"{name}.obj", file_type="obj")
     return file_path
 
 
@@ -138,17 +136,17 @@ def main():
     original_mesh, mesh, posed_mesh = get_meshes(output)
     pointmap, pointmap_colors = get_point_cloud(output)
 
-    save_mesh_as_texture(
+    save_mesh(
         mesh=original_mesh,
         name="original_mesh",
         parent_dir=OUTPUT_DIR,
     )
-    save_mesh_as_texture(
+    save_mesh(
         mesh=mesh,
         name="mesh",
         parent_dir=OUTPUT_DIR,
     )
-    save_mesh_as_texture(
+    save_mesh(
         mesh=posed_mesh,
         name="posed_mesh",
         parent_dir=OUTPUT_DIR,
