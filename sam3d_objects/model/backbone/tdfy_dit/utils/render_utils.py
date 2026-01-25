@@ -88,7 +88,7 @@ def render_frames(
 
     rets = {}
     for j, (extr, intr) in tqdm(
-        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose
+        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose, total=len(extrinsics)
     ):
         if not isinstance(sample, MeshExtractResult):
             res = renderer.render(sample, extr, intr, colors_overwrite=colors_overwrite)
@@ -143,7 +143,7 @@ def render_gaussian_color_stay_in_device(
 
     rets = {}
     for _, (extr, intr) in tqdm(
-        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose
+        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose, total=len(extrinsics)
     ):
         res = renderer.render(sample, extr, intr, colors_overwrite=colors_overwrite)
         color = (res["color"].permute(1, 2, 0) * 255).to(torch.uint8)
