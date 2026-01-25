@@ -17,27 +17,7 @@ def get_meshes(output) -> tuple[trimesh.Trimesh, trimesh.Trimesh, trimesh.Trimes
     BATCH_IDX = 0
 
     # Get the mesh
-    output_mesh = output["mesh"][BATCH_IDX]
-    vertices = output_mesh.vertices.cpu().numpy()
-    faces = output_mesh.faces.cpu().numpy()
-
-    # See if it has colors
-    # 1. Check if attributes exist
-    if output_mesh.vertex_attrs is not None:
-        # 2. Extract attributes (N, 6)
-        attrs = output_mesh.vertex_attrs.cpu().numpy()
-
-        # 3. Slice the RGB channels (usually the first 3)
-        # Note: These are likely in range [0, 1] floats. Trimesh handles this.
-        vertex_colors = attrs[:, :3]
-
-        # Optional: If colors look weird, they might be Normals or BGR.
-        # But based on the "6 channel" comment, :3 is the standard guess.
-    else:
-        print("WARNING: No vertex attributes found (use_color=False?)")
-        vertex_colors = None
-
-    original_mesh = trimesh.Trimesh(vertices, faces, vertex_colors=vertex_colors)
+    original_mesh = output["glb"]
 
     # Get the scale
     scale = output["scale"][0].cpu().numpy()

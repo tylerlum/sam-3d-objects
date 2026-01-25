@@ -108,15 +108,25 @@ class Inference:
         pointmap=None,
     ) -> dict:
         image = self.merge_mask_to_rgba(image, mask)
+        MESH_MODE = "vertex_color"  # texture needs nvdiffrast
+        if MESH_MODE == "texture":
+            with_texture_baking = True
+            use_vertex_color = False
+        elif MESH_MODE == "vertex_color":
+            with_texture_baking = False
+            use_vertex_color = True
+        else:
+            raise ValueError(f"Invalid MESH_MODE: {MESH_MODE}")
+
         return self._pipeline.run(
             image,
             None,
             seed,
             stage1_only=False,
             with_mesh_postprocess=False,
-            with_texture_baking=False,
             with_layout_postprocess=True,
-            use_vertex_color=True,
+            with_texture_baking=with_texture_baking,
+            use_vertex_color=use_vertex_color,
             stage1_inference_steps=None,
             pointmap=pointmap,
             depth=depth,
