@@ -84,8 +84,7 @@ def save_mesh_as_texture(mesh, name, parent_dir):
     # 2. Force conversion from Vertex Colors -> Texture Map
     # This generates UV coordinates and 'bakes' the colors into a PNG image.
     if hasattr(mesh.visual, 'to_texture'):
-        # resolution=2048 gives a crisper image than default
-        mesh.visual = mesh.visual.to_texture(resolution=2048)
+        mesh.visual = mesh.visual.to_texture()
     
     # 3. Export
     # This will produce: 'mesh.obj', 'material_0.mtl', 'material_0.png'
