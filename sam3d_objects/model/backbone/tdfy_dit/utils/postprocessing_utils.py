@@ -631,10 +631,11 @@ def to_glb(
 
     if with_texture_baking:
         # parametrize mesh
+        logger.info("Parametrizing mesh ...")
         vertices, faces, uvs = parametrize_mesh(vertices, faces)
-        logger.info("Baking texture ...")
 
         # bake texture
+        logger.info("Baking texture ...")
         observations, extrinsics, intrinsics = render_multiview(
             app_rep, resolution=1024, nviews=100
         )
