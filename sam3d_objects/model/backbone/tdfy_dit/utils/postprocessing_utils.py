@@ -715,6 +715,7 @@ def simplify_gs(
             "far": 1.6,
             "ssaa": 1,
             "bg_color": (0, 0, 0),
+            "backend": "gsplat",
         }
     )
     new_gs = Gaussian(**gs.init_params)

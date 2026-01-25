@@ -230,7 +230,7 @@ class GaussianRenderer:
                 "far": None,
                 "ssaa": 1,
                 "bg_color": "random",
-                "backend": "inria",
+                "backend": "gsplat",
             }
         )
         self.rendering_options.update(rendering_options)

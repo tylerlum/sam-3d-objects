@@ -108,7 +108,7 @@ class Inference:
         pointmap=None,
     ) -> dict:
         image = self.merge_mask_to_rgba(image, mask)
-        MESH_MODE = "vertex_color"  # texture needs nvdiffrast
+        MESH_MODE = "texture"  # texture needs nvdiffrast
         if MESH_MODE == "texture":
             with_texture_baking = True
             use_vertex_color = False
