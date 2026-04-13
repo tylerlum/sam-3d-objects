@@ -631,10 +631,11 @@ def to_glb(
 
     if with_texture_baking:
         # parametrize mesh
+        logger.info("Parametrizing mesh ...")
         vertices, faces, uvs = parametrize_mesh(vertices, faces)
-        logger.info("Baking texture ...")
 
         # bake texture
+        logger.info("Baking texture ...")
         observations, extrinsics, intrinsics = render_multiview(
             app_rep, resolution=1024, nviews=100
         )
@@ -715,6 +716,7 @@ def simplify_gs(
             "far": 1.6,
             "ssaa": 1,
             "bg_color": (0, 0, 0),
+            "backend": "gsplat",
         }
     )
     new_gs = Gaussian(**gs.init_params)

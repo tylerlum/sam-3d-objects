@@ -102,21 +102,35 @@ class Inference:
         self,
         image: Union[Image.Image, np.ndarray],
         mask: Optional[Union[None, Image.Image, np.ndarray]],
+        depth: Optional[Union[None, Image.Image, np.ndarray]] = None,
+        cam_K: Optional[Union[None, np.ndarray]] = None,
         seed: Optional[int] = None,
         pointmap=None,
+        mesh_mode="texture",
     ) -> dict:
         image = self.merge_mask_to_rgba(image, mask)
+        if mesh_mode == "texture":  # texture needs nvdiffrast
+            with_texture_baking = True
+            use_vertex_color = False
+        elif mesh_mode == "vertex_color":
+            with_texture_baking = False
+            use_vertex_color = True
+        else:
+            raise ValueError(f"Invalid mesh_mode: {mesh_mode}")
+
         return self._pipeline.run(
             image,
             None,
             seed,
             stage1_only=False,
             with_mesh_postprocess=False,
-            with_texture_baking=False,
             with_layout_postprocess=True,
-            use_vertex_color=True,
+            with_texture_baking=with_texture_baking,
+            use_vertex_color=use_vertex_color,
             stage1_inference_steps=None,
             pointmap=pointmap,
+            depth=depth,
+            cam_K=cam_K,
         )
 
 
@@ -344,7 +358,7 @@ def check_hydra_safety(
 def load_image(path):
     image = Image.open(path)
     image = np.array(image)
-    image = image.astype(np.uint8)
+    # image = image.astype(np.uint8)
     return image
 
 
