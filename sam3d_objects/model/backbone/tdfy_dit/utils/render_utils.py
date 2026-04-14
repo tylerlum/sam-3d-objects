@@ -74,7 +74,7 @@ def render_frames(
         renderer.rendering_options.far = options.get("far", 1.6)
         renderer.rendering_options.bg_color = options.get("bg_color", (0, 0, 0))
         renderer.rendering_options.ssaa = options.get("ssaa", 1)
-        renderer.rendering_options.backend = options.get("backend", "inria")
+        renderer.rendering_options.backend = options.get("backend", "gsplat")
         renderer.pipe.kernel_size = kwargs.get("kernel_size", 0.1)
         renderer.pipe.use_mip_gaussian = True
     elif isinstance(sample, MeshExtractResult):
@@ -88,7 +88,7 @@ def render_frames(
 
     rets = {}
     for j, (extr, intr) in tqdm(
-        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose
+        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose, total=len(extrinsics)
     ):
         if not isinstance(sample, MeshExtractResult):
             res = renderer.render(sample, extr, intr, colors_overwrite=colors_overwrite)
@@ -137,13 +137,13 @@ def render_gaussian_color_stay_in_device(
     renderer.rendering_options.far = options.get("far", 1.6)
     renderer.rendering_options.bg_color = options.get("bg_color", (0, 0, 0))
     renderer.rendering_options.ssaa = options.get("ssaa", 1)
-    renderer.rendering_options.backend = options.get("backend", "inria")
+    renderer.rendering_options.backend = options.get("backend", "gsplat")
     renderer.pipe.kernel_size = kwargs.get("kernel_size", 0.1)
     renderer.pipe.use_mip_gaussian = True
 
     rets = {}
     for _, (extr, intr) in tqdm(
-        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose
+        enumerate(zip(extrinsics, intrinsics)), desc="Rendering", disable=not verbose, total=len(extrinsics)
     ):
         res = renderer.render(sample, extr, intr, colors_overwrite=colors_overwrite)
         color = (res["color"].permute(1, 2, 0) * 255).to(torch.uint8)
@@ -159,7 +159,7 @@ def render_video(
     num_frames=300,
     r=2,
     fov=40,
-    backend="inria",
+    backend="gsplat",
     **kwargs,
 ):
     yaws = torch.linspace(0, 2 * 3.1415, num_frames)
@@ -178,7 +178,7 @@ def render_video(
     )
 
 
-def render_multiview(sample, resolution=512, nviews=30):
+def render_multiview(sample, resolution=512, nviews=30, backend="gsplat"):
     r = 2
     fov = 40
     cams = [sphere_hammersley_sequence(i, nviews) for i in range(nviews)]
@@ -191,7 +191,7 @@ def render_multiview(sample, resolution=512, nviews=30):
         sample,
         extrinsics,
         intrinsics,
-        {"resolution": resolution, "bg_color": (0, 0, 0)},
+        {"resolution": resolution, "bg_color": (0, 0, 0), "backend": backend},
     )
     return res["color"], extrinsics, intrinsics
 
