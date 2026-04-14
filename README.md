@@ -1,4 +1,8 @@
 <!-- SimToolReal additions -->
+# SAM 3D
+
+SAM 3D Objects is one part of SAM 3D, a pair of models for object and human mesh reconstruction.  If you’re looking for SAM 3D Body, [click here](https://github.com/facebookresearch/sam-3d-body).
+
 # SimToolReal Pipeline
 
 This repo now includes a SimToolReal-oriented inference path on top of the upstream SAM 3D Objects codebase.
@@ -155,10 +159,6 @@ Notes:
 ---
 
 ## Original Upstream README
-
-# SAM 3D
-
-SAM 3D Objects is one part of SAM 3D, a pair of models for object and human mesh reconstruction.  If you’re looking for SAM 3D Body, [click here](https://github.com/facebookresearch/sam-3d-body).
 
 # SAM 3D Objects
 
