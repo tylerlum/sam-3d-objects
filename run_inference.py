@@ -1,15 +1,28 @@
 import sys
 import time
-import argparse
+from dataclasses import dataclass
 import viser
 import trimesh
 import numpy as np
 from pathlib import Path
 from PIL import Image
+import tyro
 
 # import inference code
 sys.path.append("notebook")
 from inference import Inference, load_image, load_mask
+
+
+@dataclass
+class RunInferenceArgs:
+    input_dir: Path
+    """Directory containing `rgb/`, `masks/`, `depth/`, and `cam_K.txt`."""
+
+    output_dir: Path = Path("output")
+    """Output directory for splat and mesh artifacts."""
+
+    mesh_mode: str = "texture"
+    """Mesh mode: `texture` or `vertex_color`. `texture` requires `nvdiffrast`."""
 
 
 def get_meshes(output) -> tuple[trimesh.Trimesh, trimesh.Trimesh, trimesh.Trimesh]:
@@ -83,11 +96,7 @@ def save_mesh(mesh: trimesh.Trimesh, name: str, parent_dir: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run inference on a directory with rgb, masks, and depth subdirectories")
-    parser.add_argument("--input_dir", type=Path, help="Directory containing rgb/, masks/, and depth/ subdirectories")
-    parser.add_argument("--output_dir", type=Path, default=Path("output"), help="Output directory (default: output)")
-    parser.add_argument("--mesh_mode", type=str, default="texture", help="Mesh mode: texture or vertex_color. texture requires nvdiffrast.")
-    args = parser.parse_args()
+    args = tyro.cli(RunInferenceArgs, use_underscores=True)
 
     input_dir = args.input_dir
     OUTPUT_DIR = args.output_dir
