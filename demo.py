@@ -1,11 +1,12 @@
 import sys
+import numpy as np
 import viser
 import trimesh
 from pathlib import Path
 
 # import inference code
 sys.path.append("notebook")
-from inference import Inference, load_image, load_single_mask, load_mask
+from inference import Inference, load_image, load_mask
 
 # load model
 tag = "hf"
@@ -18,7 +19,6 @@ mask = load_mask("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_b
 
 USE_DEPTH_AND_CAM_K = True
 if USE_DEPTH_AND_CAM_K:
-    import numpy as np
     from PIL import Image
     depth_mm = np.array(Image.open("/juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward/depth/frame_0000.png"))
     depth_m = depth_mm / 1000.0

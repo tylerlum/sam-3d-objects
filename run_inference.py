@@ -1,4 +1,5 @@
 import sys
+import time
 import argparse
 import viser
 import trimesh
@@ -185,7 +186,12 @@ def main():
         colors=pointmap_colors,
         point_size=0.002,
     )
-    breakpoint()
+    print("Viser server running. Press Ctrl+C to exit.")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":

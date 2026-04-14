@@ -345,6 +345,8 @@ class InferencePipelinePointMap(InferencePipeline):
                 points_tensor.permute(1, 2, 0), device=self.device
             )
             point_map_tensor["intrinsics"] = intrinsics_result["intrinsics"]
+        else:
+            point_map_tensor["intrinsics"] = intrinsics
 
         return point_map_tensor
 
