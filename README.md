@@ -1,3 +1,161 @@
+<!-- SimToolReal additions -->
+# SimToolReal Pipeline
+
+This repo now includes a SimToolReal-oriented inference path on top of the upstream SAM 3D Objects codebase.
+
+At a high level, the local changes add:
+
+- `run_inference.py` for running SAM 3D Objects on a directory containing RGB, mask, depth, and camera intrinsics.
+- A `depth + cam_K` inference path so point clouds can be built from external depth rather than only the model-predicted pointmap.
+- A `tyro`-based CLI for `run_inference.py`.
+- UV-friendly environment fixes and runtime fixes, including support for textured output via `nvdiffrast`.
+
+This section is specific to the SimToolReal workflow. The original upstream README is preserved below.
+
+## SimToolReal Installation
+
+These steps use `uv` with Python 3.11.
+
+```bash
+cd /home/tylerlum/github_repos/sam-3d-objects
+uv venv .venv311 --python 3.11
+source .venv311/bin/activate
+```
+
+Install PyTorch CUDA 12.1 wheels:
+
+```bash
+uv pip install torch==2.5.1+cu121 torchvision==0.20.1+cu121 torchaudio==2.5.1+cu121 \
+  --index-url https://download.pytorch.org/whl/cu121
+```
+
+Install the main compiled dependencies:
+
+```bash
+uv pip install --no-build-isolation \
+  "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@75ebeeaea0908c5527e7b1e305fbc7681382db47" \
+  "gsplat @ git+https://github.com/nerfstudio-project/gsplat.git@2323de5905d5e90e035f792fe65bad0fedd413e7" \
+  spconv-cu121==2.3.8 \
+  kaolin==0.17.0 \
+  "utils3d @ git+https://github.com/EasternJournalist/utils3d.git@3913c65d81e05e47b9f367250cf8c0f7462a0900" \
+  "moge @ git+https://github.com/microsoft/MoGe.git@a8c37341bc0325ca99b9d57981cc3bb2bd3e255b"
+```
+
+Install the repo and the CLI dependency:
+
+```bash
+uv pip install tyro==0.9.35
+```
+
+`nvdiffrast` is only required for `--mesh_mode texture`. If you only want `vertex_color`, you can skip this step.
+
+```bash
+uv pip install --no-build-isolation \
+  "nvdiffrast @ git+https://github.com/NVlabs/nvdiffrast.git@253ac4fcea7de5f396371124af597e6cc957bfae"
+```
+
+## Checkpoints
+
+Authenticate with Hugging Face and download the SAM 3D Objects checkpoints:
+
+```bash
+source .venv311/bin/activate
+hf auth login
+
+TAG=hf
+hf download \
+  --repo-type model \
+  --local-dir checkpoints/${TAG}-download \
+  --max-workers 1 \
+  facebook/sam-3d-objects
+mv checkpoints/${TAG}-download/checkpoints checkpoints/${TAG}
+rm -rf checkpoints/${TAG}-download
+```
+
+After this, you should have `checkpoints/hf/pipeline.yaml` plus the related checkpoint files.
+
+## CLI Usage
+
+```bash
+source .venv311/bin/activate
+python run_inference.py --input_dir /path/to/sequence --mesh_mode texture
+```
+
+Current CLI help:
+
+```text
+usage: run_inference.py [-h] --input_dir PATH [--output_dir PATH] [--mesh_mode STR]
+
+╭─ options ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ -h, --help              show this help message and exit                                                             │
+│ --input_dir PATH        Directory containing `rgb/`, `masks/`, `depth/`, and `cam_K.txt`. (required)                │
+│ --output_dir PATH       Output directory for splat and mesh artifacts. (default: output)                            │
+│ --mesh_mode STR         Mesh mode: `texture` or `vertex_color`. `texture` requires `nvdiffrast`. (default: texture) │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+## Input Structure
+
+`run_inference.py` expects an input directory shaped like:
+
+```text
+<input_dir>/
+  cam_K.txt
+  rgb/
+    *.png
+  masks/
+    *.png
+  depth/
+    *.png
+```
+
+Behavior:
+
+- The script reads the first `.png` file from `rgb/`, `masks/`, and `depth/`.
+- `cam_K.txt` must be a `3 x 3` camera intrinsics matrix.
+- `depth/` is expected to contain metric depth stored in millimeters; the script converts it to meters internally.
+
+Example:
+
+```bash
+python run_inference.py \
+  --input_dir /juno/u/kedia/FoundationPose/human_videos/Jan_17/brush/anvil_brush/sweep_forward \
+  --mesh_mode texture
+```
+
+## Output Structure
+
+By default, outputs are written to `output/` unless `--output_dir` is provided.
+
+Expected outputs include:
+
+```text
+<output_dir>/
+  splat.ply
+  original_mesh/
+    original_mesh.glb
+    original_mesh.obj
+    ...
+  mesh/
+    mesh.glb
+    mesh.obj
+    ...
+  posed_mesh/
+    posed_mesh.glb
+    posed_mesh.obj
+    ...
+```
+
+Notes:
+
+- `splat.ply` is the exported Gaussian splat.
+- `original_mesh`, `mesh`, and `posed_mesh` are each written into their own subdirectory.
+- OBJ export may also generate material and texture sidecar files depending on mesh mode and export path.
+
+---
+
+## Original Upstream README
+
 # SAM 3D
 
 SAM 3D Objects is one part of SAM 3D, a pair of models for object and human mesh reconstruction.  If you’re looking for SAM 3D Body, [click here](https://github.com/facebookresearch/sam-3d-body).
