@@ -8,11 +8,6 @@ from pathlib import Path
 from PIL import Image
 import tyro
 
-# import inference code
-sys.path.append("notebook")
-from inference import Inference, load_image, load_mask
-
-
 @dataclass
 class RunInferenceArgs:
     input_dir: Path
@@ -95,8 +90,16 @@ def save_mesh(mesh: trimesh.Trimesh, name: str, parent_dir: Path):
     return file_path
 
 
+def load_inference_api():
+    sys.path.append("notebook")
+    from inference import Inference, load_image, load_mask
+
+    return Inference, load_image, load_mask
+
+
 def main():
     args = tyro.cli(RunInferenceArgs, use_underscores=True)
+    Inference, load_image, load_mask = load_inference_api()
 
     input_dir = args.input_dir
     OUTPUT_DIR = args.output_dir
