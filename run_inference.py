@@ -19,6 +19,43 @@ class RunInferenceArgs:
     mesh_mode: str = "texture"
     """Mesh mode: `texture` or `vertex_color`. `texture` requires `nvdiffrast`."""
 
+    non_interactive: bool = False
+    """Exit after writing outputs instead of starting a Viser viewer and waiting for Ctrl+C."""
+
+    resize_inputs_to_depth: bool = True
+    """Resize RGB and mask to depth resolution when shapes differ."""
+
+
+def resize_inputs_to_depth(
+    image: np.ndarray,
+    mask: np.ndarray,
+    depth_m: np.ndarray,
+    rgb_path: Path,
+    mask_path: Path,
+) -> tuple[np.ndarray, np.ndarray]:
+    depth_h, depth_w = depth_m.shape[:2]
+
+    if image.shape[:2] != (depth_h, depth_w):
+        print(
+            f"Warning: RGB/depth size mismatch for {rgb_path.name}: "
+            f"rgb={image.shape[:2]} depth={depth_m.shape[:2]}; resizing RGB to depth size"
+        )
+        image = np.array(
+            Image.fromarray(image).resize((depth_w, depth_h), Image.Resampling.BILINEAR)
+        )
+
+    if mask.shape[:2] != (depth_h, depth_w):
+        print(
+            f"Warning: mask/depth size mismatch for {mask_path.name}: "
+            f"mask={mask.shape[:2]} depth={depth_m.shape[:2]}; resizing mask to depth size"
+        )
+        mask_uint8 = mask.astype(np.uint8) * 255
+        mask = np.array(
+            Image.fromarray(mask_uint8).resize((depth_w, depth_h), Image.Resampling.NEAREST)
+        ) > 0
+
+    return image, mask
+
 
 def get_meshes(output) -> tuple[trimesh.Trimesh, trimesh.Trimesh, trimesh.Trimesh]:
     from scipy.spatial.transform import Rotation as R
@@ -97,7 +134,18 @@ def load_inference_api():
     return Inference, load_image, load_mask
 
 
+def normalize_cli_aliases():
+    aliases = {
+        "--non-interactive": "--non_interactive",
+        "--no-non-interactive": "--no_non_interactive",
+        "--resize-inputs-to-depth": "--resize_inputs_to_depth",
+        "--no-resize-inputs-to-depth": "--no_resize_inputs_to_depth",
+    }
+    sys.argv = [aliases.get(arg, arg) for arg in sys.argv]
+
+
 def main():
+    normalize_cli_aliases()
     args = tyro.cli(RunInferenceArgs, use_underscores=True)
     Inference, load_image, load_mask = load_inference_api()
 
@@ -146,6 +194,8 @@ def main():
     depth_m = depth_mm / 1000.0
     cam_K = np.loadtxt(cam_K_path)
     assert cam_K.shape == (3, 3), f"cam_K.shape: {cam_K.shape}, expected: (3, 3)"
+    if args.resize_inputs_to_depth:
+        image, mask = resize_inputs_to_depth(image, mask, depth_m, rgb_path, mask_path)
 
     # run model with depth and cam_K
     output = inference(image, mask, seed=42, depth=depth_m, cam_K=cam_K, mesh_mode=args.mesh_mode)
@@ -175,6 +225,13 @@ def main():
         parent_dir=OUTPUT_DIR,
     )
 
+    print()
+    print("Inference completed successfully.")
+    print(f"Outputs were written to: {OUTPUT_DIR}")
+
+    if args.non_interactive:
+        return
+
     server = viser.ViserServer()
     server.scene.add_grid("/ground", width=2, height=2, cell_size=0.1)
     server.scene.add_mesh_simple(
@@ -198,9 +255,6 @@ def main():
         colors=pointmap_colors,
         point_size=0.002,
     )
-    print()
-    print("Inference completed successfully.")
-    print(f"Outputs were written to: {OUTPUT_DIR}")
     print("Open the Viser viewer to inspect the reconstruction.")
     print("Press Ctrl+C when you are done viewing to stop the viewer and continue.")
     try:
