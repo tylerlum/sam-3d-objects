@@ -19,6 +19,15 @@ class RunInferenceArgs:
     mesh_mode: str = "texture"
     """Mesh mode: `texture` or `vertex_color`. `texture` requires `nvdiffrast`."""
 
+    texture_size: int = 1024
+    """Texture atlas size for textured mesh export."""
+
+    texture_render_resolution: int = 1024
+    """Render resolution used to bake mesh textures."""
+
+    texture_nviews: int = 100
+    """Number of rendered views used to bake mesh textures."""
+
     non_interactive: bool = False
     """Exit after writing outputs instead of starting a Viser viewer and waiting for Ctrl+C."""
 
@@ -140,6 +149,9 @@ def normalize_cli_aliases():
         "--no-non-interactive": "--no_non_interactive",
         "--resize-inputs-to-depth": "--resize_inputs_to_depth",
         "--no-resize-inputs-to-depth": "--no_resize_inputs_to_depth",
+        "--texture-size": "--texture_size",
+        "--texture-render-resolution": "--texture_render_resolution",
+        "--texture-nviews": "--texture_nviews",
     }
     sys.argv = [aliases.get(arg, arg) for arg in sys.argv]
 
@@ -198,7 +210,17 @@ def main():
         image, mask = resize_inputs_to_depth(image, mask, depth_m, rgb_path, mask_path)
 
     # run model with depth and cam_K
-    output = inference(image, mask, seed=42, depth=depth_m, cam_K=cam_K, mesh_mode=args.mesh_mode)
+    output = inference(
+        image,
+        mask,
+        seed=42,
+        depth=depth_m,
+        cam_K=cam_K,
+        mesh_mode=args.mesh_mode,
+        texture_size=args.texture_size,
+        texture_render_resolution=args.texture_render_resolution,
+        texture_nviews=args.texture_nviews,
+    )
 
     # export gaussian splat
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

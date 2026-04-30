@@ -473,6 +473,9 @@ class InferencePipeline:
         with_mesh_postprocess=True,
         with_texture_baking=True,
         use_vertex_color=False,
+        texture_size=1024,
+        texture_render_resolution=1024,
+        texture_nviews=100,
         stage1_inference_steps=None,
         stage2_inference_steps=None,
         use_stage1_distillation=False,
@@ -522,7 +525,13 @@ class InferencePipeline:
                 slat, self.decode_formats if decode_formats is None else decode_formats
             )
             outputs = self.postprocess_slat_output(
-                outputs, with_mesh_postprocess, with_texture_baking, use_vertex_color
+                outputs,
+                with_mesh_postprocess,
+                with_texture_baking,
+                use_vertex_color,
+                texture_size=texture_size,
+                texture_render_resolution=texture_render_resolution,
+                texture_nviews=texture_nviews,
             )
             logger.info("Finished!")
 
@@ -532,7 +541,14 @@ class InferencePipeline:
             }
 
     def postprocess_slat_output(
-        self, outputs, with_mesh_postprocess, with_texture_baking, use_vertex_color
+        self,
+        outputs,
+        with_mesh_postprocess,
+        with_texture_baking,
+        use_vertex_color,
+        texture_size=1024,
+        texture_render_resolution=1024,
+        texture_nviews=100,
     ):
         # GLB files can be extracted from the outputs
         logger.info(
@@ -544,7 +560,9 @@ class InferencePipeline:
                 outputs["mesh"][0],
                 # Optional parameters
                 simplify=0.95,  # Ratio of triangles to remove in the simplification process
-                texture_size=1024,  # Size of the texture used for the GLB
+                texture_size=texture_size,
+                texture_render_resolution=texture_render_resolution,
+                texture_nviews=texture_nviews,
                 verbose=False,
                 with_mesh_postprocess=with_mesh_postprocess,
                 with_texture_baking=with_texture_baking,

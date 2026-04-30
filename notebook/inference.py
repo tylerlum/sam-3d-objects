@@ -111,6 +111,9 @@ class Inference:
         seed: Optional[int] = None,
         pointmap=None,
         mesh_mode="texture",
+        texture_size=1024,
+        texture_render_resolution=1024,
+        texture_nviews=100,
     ) -> dict:
         image = self.merge_mask_to_rgba(image, mask)
         if mesh_mode == "texture":  # texture needs nvdiffrast
@@ -131,6 +134,9 @@ class Inference:
             with_layout_postprocess=True,
             with_texture_baking=with_texture_baking,
             use_vertex_color=use_vertex_color,
+            texture_size=texture_size,
+            texture_render_resolution=texture_render_resolution,
+            texture_nviews=texture_nviews,
             stage1_inference_steps=None,
             pointmap=pointmap,
             depth=depth,

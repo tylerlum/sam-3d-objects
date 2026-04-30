@@ -385,6 +385,9 @@ class InferencePipelinePointMap(InferencePipeline):
         with_texture_baking=True,
         with_layout_postprocess=True,
         use_vertex_color=False,
+        texture_size=1024,
+        texture_render_resolution=1024,
+        texture_nviews=100,
         stage1_inference_steps=None,
         stage2_inference_steps=None,
         use_stage1_distillation=False,
@@ -453,7 +456,13 @@ class InferencePipelinePointMap(InferencePipeline):
                 slat, self.decode_formats if decode_formats is None else decode_formats
             )
             outputs = self.postprocess_slat_output(
-                outputs, with_mesh_postprocess, with_texture_baking, use_vertex_color
+                outputs,
+                with_mesh_postprocess,
+                with_texture_baking,
+                use_vertex_color,
+                texture_size=texture_size,
+                texture_render_resolution=texture_render_resolution,
+                texture_nviews=texture_nviews,
             )
             glb = outputs.get("glb", None)
 
